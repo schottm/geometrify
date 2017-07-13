@@ -10,3 +10,7 @@
 *.a
 
 src/geometrify/main\.h
+
+*.sh
+
+*.so
