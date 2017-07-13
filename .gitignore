@@ -1,0 +1,12 @@
+
+\.idea/
+
+*.bat
+
+*.exe
+
+*.dll
+
+*.a
+
+src/geometrify/main\.h
