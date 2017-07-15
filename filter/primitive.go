@@ -18,7 +18,7 @@ type Point struct {
 
 type Color struct {
 
-	R, G, B, A uint8
+	R, G, B, A uint16
 }
 
 

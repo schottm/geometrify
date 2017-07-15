@@ -1,5 +1,8 @@
 package main
 
+/*
+
+ */
 import "C"
 
 import (
@@ -87,10 +90,10 @@ func Calculate(width, height int, data []int32, iterations, samples, threads int
 		for y := 0; y < height; y++ {
 
 			pixel := data[y * width + x]
-			alpha := uint8(pixel >> 24)
-			red := uint8(pixel >> 16)
-			green := uint8(pixel >> 8)
-			blue := uint8(pixel)
+			alpha := uint16(pixel >> 24)
+			red := uint16(pixel >> 16)
+			green := uint16(pixel >> 8)
+			blue := uint16(pixel)
 
 			source.Set(x, y, red, green, blue, alpha)
 		}

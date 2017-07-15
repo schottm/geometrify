@@ -2,7 +2,7 @@ package filter
 
 import (
 	"fmt"
-	"math"
+	"sync"
 )
 
 type result struct {
@@ -16,23 +16,10 @@ func GenerateImage(source *Drawing, generator PrimitiveGenerator, iterations, pa
 	parallel = min(samples, parallel)
 	//calculate needed the samples to calculate per thread
 	var target = NewDrawing(source.Width, source.Height, source.Opaque())
-	var shifted = NewDrawing(source.Width, source.Height, false)
-
 	fmt.Printf("Simplifing image(%dx%d): %d iterations, %d samples, %d threads.\n", source.Width, source.Height, iterations, samples, parallel)
 
-	if source.Opaque() {
-
-		for y := 0; y < shifted.Height; y++ {
-
-			for x := 0; x < shifted.Width; x++ {
-
-				shifted.Set(x, y, 0, 0, 0, (math.MaxUint8 >> 1) + 1)
-			}
-		}
-	}
-
 	//create channel for thread (equivalent to wait in java, but 1000-times better xD)
-	var channel chan *result = make(chan *result, parallel)
+	//var channel chan *result = make(chan *result, parallel)
 	//var generators = make([]PrimitiveGenerator, parallel)
 
 	//the random func in go is not concurrent -> we have to create a random generator for each thread
@@ -42,78 +29,104 @@ func GenerateImage(source *Drawing, generator PrimitiveGenerator, iterations, pa
 		generators[i] = create(time.Now().UnixNano() * int64(i + 1))
 	}
 	*/
+	var wg = &sync.WaitGroup{}
+	var mutex = &sync.Mutex{}
 
 	for i := 0; i < iterations; i++ {
 
-		var process chan Primitive = make(chan Primitive, min(samples, parallel * 4))
+		var process chan Primitive = make(chan Primitive, samples)
 
 		if i % 10 == 0 {
 			fmt.Println("Iteration: ", i)
 		}
 
 		//calculate the samples in different threads
+		var impact = 0
+		var result Primitive = nil
+		//var overallRes *result = nil
 
 		for j := 0; j < parallel; j++ {
 
 			go func() {
-				r := findPrimitive(source, target, shifted, process)
 
-				channel <- r
-			}()
-		}
+				/*
+				for primitive := range process {
 
-		for j := 0; j < samples; j++ {
-			process <- generator.generate(source.Width, source.Height)
-		}
+					current := findImpact(source, target, primitive)
 
-		close(process)
+					mutex.Lock()
+					if current > impact {
+						impact = current
+						result = primitive
+					}
+					mutex.Unlock()
+				}
+				*/
 
-		//find the primitive with least weight
-		var overallRes *result = nil
-		for j := 0; j < parallel; j++ {
+				primitive, current := findPrimitive(source, target, process)
 
-			primitive := <-channel
+				//replace current primitive if this one is better
+				mutex.Lock()
+				if current > impact {
+					impact = current
+					result = primitive
+				}
+				/*
+				if overallRes == nil {
 
-			if overallRes == nil {
+					if primitive.impact > 0 {
 
-				if primitive.impact > 0 {
+						overallRes = primitive
+					}
+
+				} else if overallRes.impact < primitive.impact {
 
 					overallRes = primitive
 				}
+				*/
+				mutex.Unlock()
 
-			} else if overallRes.impact < primitive.impact {
-
-				overallRes = primitive
-			}
+				wg.Done()
+			}()
 		}
 
-		if overallRes != nil {
+		wg.Add(parallel)
+		for j := 0; j < samples; j++ {
+			process <- generator.generate(source.Width, source.Height)
+		}
+		close(process)
+		//wait for calculation to finish
+		wg.Wait()
 
-			addToImage(target, shifted, overallRes.primitive)
+		if result != nil {
+
+			addToImage(target, result)
 		}
 	}
 
-	close(channel)
+	//close(channel)
 
 	return target
 }
 
-func findPrimitive(source, target, shifted *Drawing, queue <-chan Primitive) *result {
+func findImpact(source, target *Drawing, primitive Primitive) int {
+
+	primitive.SetColor(generateColor(source, primitive))
+
+	return generateImpact(source, target, primitive)
+}
+
+func findPrimitive(source, target *Drawing, queue <-chan Primitive) (Primitive, int) {
 
 	var impact int = 0
 	var match Primitive = nil
 
-	for {
-
-		primitive, ok := <-queue
-		if !ok {
-			return &result{match, impact}
-		}
+	for primitive := range queue {
 
 		if primitive != nil {
 			primitive.SetColor(generateColor(source, primitive))
 
-			var currentImpact = generateImpact(source, target, shifted, primitive)
+			var currentImpact = generateImpact(source, target, primitive)
 
 			if currentImpact >= impact {
 
@@ -122,6 +135,7 @@ func findPrimitive(source, target, shifted *Drawing, queue <-chan Primitive) *re
 			}
 		}
 	}
+	return match, impact
 }
 
 func generateColor(image *Drawing, primitive Primitive) Color {
@@ -151,16 +165,16 @@ func generateColor(image *Drawing, primitive Primitive) Color {
 		return Color{0, 0, 0, 0}
 	}
 
-	return Color{R: uint8(red / count), G: uint8(green / count), B: uint8(blue / count), A: uint8(alpha / count)}
+	return Color{R: uint16(red / count), G: uint16(green / count), B: uint16(blue / count), A: uint16(alpha / count)}
 }
 
-func generateImpact(source, target, shifted *Drawing, primitive Primitive) int {
+func generateImpact(source, target *Drawing, primitive Primitive) int {
 
 	var impact int
-	var r = primitive.GetColor().R >> 1
-	var g = primitive.GetColor().G >> 1
-	var b = primitive.GetColor().B >> 1
-	var a = primitive.GetColor().A >> 1
+	var r = primitive.GetColor().R
+	var g = primitive.GetColor().G
+	var b = primitive.GetColor().B
+	var a = primitive.GetColor().A
 
 	//var sr, sg, sb, sa uint16
 
@@ -172,15 +186,22 @@ func generateImpact(source, target, shifted *Drawing, primitive Primitive) int {
 
 				var i = source.indexOf(x, y)
 
+				impact += avgdiff(source.data[i], target.data[i], r)
+				impact += avgdiff(source.data[i + 1], target.data[i + 1], g)
+				impact += avgdiff(source.data[i + 2], target.data[i + 2], b)
+				impact += avgdiff(source.data[i + 3], target.data[i + 3], a)
+
+				/*
 				impact += int(diff(source.data[i], target.data[i]))
 				impact += int(diff(source.data[i + 1], target.data[i + 1]))
 				impact += int(diff(source.data[i + 2], target.data[i + 2]))
 				impact += int(diff(source.data[i + 3], target.data[i + 3]))
 
-				impact -= int(diff(source.data[i], r + shifted.data[i]))
-				impact -= int(diff(source.data[i + 1], g + shifted.data[i + 1]))
-				impact -= int(diff(source.data[i + 2], b + shifted.data[i + 2]))
-				impact -= int(diff(source.data[i + 3], a + shifted.data[i + 3]))
+				impact -= int(diff(source.data[i], (r + target.data[i]) >> 1))
+				impact -= int(diff(source.data[i + 1], (g + target.data[i + 1]) >> 1))
+				impact -= int(diff(source.data[i + 2], (b + target.data[i + 2]) >> 1))
+				impact -= int(diff(source.data[i + 3], (a + target.data[i + 3]) >> 1))
+				*/
 
 				/*
 				sr = source.data[i]
@@ -204,12 +225,12 @@ func generateImpact(source, target, shifted *Drawing, primitive Primitive) int {
 	return impact
 }
 
-func addToImage(target, shifted *Drawing, primitive Primitive) {
+func addToImage(target *Drawing, primitive Primitive) {
 
-	var r = primitive.GetColor().R >> 1
-	var g = primitive.GetColor().G >> 1
-	var b = primitive.GetColor().B >> 1
-	var a = primitive.GetColor().A >> 1
+	var r = primitive.GetColor().R
+	var g = primitive.GetColor().G
+	var b = primitive.GetColor().B
+	var a = primitive.GetColor().A
 
 	for y := primitive.Bounds().Min.Y; y <= primitive.Bounds().Max.Y; y++ {
 
@@ -219,26 +240,39 @@ func addToImage(target, shifted *Drawing, primitive Primitive) {
 
 				var i = target.indexOf(x, y)
 
-				target.data[i] = r + shifted.data[i]
-				target.data[i + 1] = g + shifted.data[i + 1]
-				target.data[i + 2] = b + shifted.data[i + 2]
-				target.data[i + 3] = a + shifted.data[i + 3]
-
-				shifted.data[i] = (target.data[i] >> 1) + 1
-				shifted.data[i + 1] = (target.data[i + 1] >> 1) + 1
-				shifted.data[i + 2] = (target.data[i + 2] >> 1) + 1
-				shifted.data[i + 3] = (target.data[i + 3] >> 1) + 1
+				target.data[i] = (r + target.data[i]) >> 1
+				target.data[i + 1] = (g + target.data[i + 1]) >> 1
+				target.data[i + 2] = (b + target.data[i + 2]) >> 1
+				target.data[i + 3] = (a + target.data[i + 3]) >> 1
 			}
 		}
 	}
 }
 
-func diff(a, b uint8) uint8 {
+func avgdiff(source, target, primitive uint16) int {
 
-	if a > b {
-		return a - b
+	tc := int(target + primitive) >> 1
+	s := int(source)
+	t := int(target)
+	if s > t {
+
+		if s > tc {
+
+			return tc - t
+		} else {
+
+			return (s << 1) - t - tc
+		}
+	} else {
+
+		if s > tc {
+
+			return t + tc - (s << 1)
+		} else {
+
+			return t - tc
+		}
 	}
-	return b - a
 }
 
 

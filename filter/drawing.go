@@ -9,14 +9,14 @@ import (
 
 type Drawing struct {
 
-	data []uint8
+	data []uint16
 	Height int
 	Width int
 }
 
 func NewDrawing(width, height int, opaque bool) *Drawing {
 
-	var drawing = Drawing{data: make([]uint8, width * height * 4), Height: height, Width: width}
+	var drawing = Drawing{data: make([]uint16, width * height * 4), Height: height, Width: width}
 
 	if opaque {
 
@@ -38,7 +38,7 @@ func DrawingFromImage(source image.Image) *Drawing {
 	var width = source.Bounds().Max.X
 	var height = source.Bounds().Max.Y
 
-	var result = Drawing{data: make([]uint8, width * height * 4), Height: height, Width: width}
+	var result = Drawing{data: make([]uint16, width * height * 4), Height: height, Width: width}
 
 	for x := 0; x < source.Bounds().Max.X; x++ {
 
@@ -70,10 +70,10 @@ func (img *Drawing) SetColor(x, y int, c color.Color) {
 
 	var r, g, b, a = c.RGBA()
 
-	img.Set(x, y, uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8))
+	img.Set(x, y, uint16(r >> 8), uint16(g >> 8), uint16(b >> 8), uint16(a >> 8))
 }
 
-func (img *Drawing) Set(x, y int, r, g, b, a uint8) {
+func (img *Drawing) Set(x, y int, r, g, b, a uint16) {
 
 	var i = img.indexOf(x, y)
 	img.data[i] = r
@@ -93,7 +93,7 @@ func (img *Drawing) GetColor(x, y int) color.Color {
 	return &color.RGBA64{R: r64, G: g64, B: b64, A: a64}
 }
 
-func (img *Drawing) Get(x, y int) (r, g, b, a uint8){
+func (img *Drawing) Get(x, y int) (r, g, b, a uint16){
 
 	var i = img.indexOf(x, y)
 	r = img.data[i]
@@ -105,7 +105,7 @@ func (img *Drawing) Get(x, y int) (r, g, b, a uint8){
 
 func (img *Drawing) indexOf(x int, y int) int {
 
-	return (y * img.Width + x) * 4
+	return (y * img.Width + x) << 2
 }
 
 func (img *Drawing) Opaque() bool {
