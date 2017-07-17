@@ -36,14 +36,14 @@ JNIEXPORT jintArray JNICALL Java_org_iMage_geometrify_ParallelTrianglePictureFil
        *(c_data_ptr + j) = (jint) ((GoInt32 *)go_result.data)[j];
     }
 
-    free(go_data_ptr)
+    free(go_data_ptr);
 
     //convert jint[] to jintArray
     jintArray out_ints;
     out_ints = (*env)->NewIntArray(env, width * height);
     (*env)->SetIntArrayRegion(env, out_ints, 0, width * height, c_data_ptr);
 
-    free(c_data_ptr)
+    free(c_data_ptr);
 
     return out_ints;
 }
