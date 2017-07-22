@@ -6,6 +6,7 @@ type Triangle struct {
 	B Point
 	C Point
 
+	/*
 	y23 int
 	x32 int
 	y31 int
@@ -13,12 +14,14 @@ type Triangle struct {
 	det int
 	minD int
 	maxD int
+	*/
 
-	Bound BoundingBox
+	//Bound BoundingBox
 
 	Color
 }
 
+/*
 func (triangle *Triangle) IsInside(x, y int) bool {
 
 
@@ -50,14 +53,62 @@ func (triangle *Triangle) IsInside(x, y int) bool {
 	}
 
 	return (triangle.C.X - triangle.B.X) * (y - triangle.B.Y) - (triangle.C.Y - triangle.B.Y) * (x - triangle.B.X) > 0 == ab
-	*/
 
 }
+*/
 
+func (triangle *Triangle) ForEach(do func(int, int)) {
+
+	if triangle.B.Y == triangle.C.Y {
+		fillBottomFlatTriangle(triangle.A, triangle.B, triangle.C, do)
+	} else if triangle.A.Y == triangle.B.Y {
+		fillTopFlatTriangle(triangle.A, triangle.B, triangle.C, do)
+	} else {
+		x := triangle.A.X + int(float32(triangle.B.Y - triangle.A.Y) / float32(triangle.C.Y - triangle.A.Y) * float32(triangle.C.X - triangle.A.X))
+		d := Point{x, triangle.B.Y}
+		fillBottomFlatTriangle(triangle.A, triangle.B, d, do)
+		fillTopFlatTriangle(triangle.B, d, triangle.C, do)
+	}
+}
+
+func fillBottomFlatTriangle(p1, p2, p3 Point, do func(int, int)) {
+	invslope1 := float32(p2.X - p1.X) / float32(p2.Y - p1.Y)
+	invslope2 := float32(p3.X - p1.X) / float32(p3.Y - p1.Y)
+
+	curx1 := float32(p1.X)
+	curx2 := float32(p1.X)
+
+	for scanlineY := p1.Y; scanlineY <= p2.Y; scanlineY++ {
+		for i := int(curx1); i < int(curx2); i++ {
+			do(i, scanlineY)
+		}
+		curx1 += invslope1
+		curx2 += invslope2
+	}
+}
+
+func fillTopFlatTriangle(p1, p2, p3 Point, do func(int, int)) {
+	invslope1 := float32(p3.X - p1.X) / float32(p3.Y - p1.Y)
+	invslope2 := float32(p3.X - p2.X) / float32(p3.Y - p2.Y)
+
+	curx1 := float32(p3.X)
+	curx2 := float32(p3.X)
+
+	for scanlineY := p3.Y; scanlineY > p1.Y; scanlineY-- {
+		for i := int(curx1); i < int(curx2); i++ {
+			do(i, scanlineY)
+		}
+		curx1 -= invslope1
+		curx2 -= invslope2
+	}
+}
+
+/*
 func (triangle *Triangle) Bounds() *BoundingBox {
 
 	return &triangle.Bound
 }
+*/
 
 func (triangle *Triangle) GetColor() *Color {
 
@@ -71,6 +122,23 @@ func (triangle *Triangle) SetColor(color Color) {
 
 func NewTriangle(a Point, b Point, c Point) *Triangle {
 
+	p1 := a
+	p2 := b
+	p3 := c
+	if b.Y < p1.Y {
+		p2 = p1
+		p1 = b
+	}
+	if c.Y < p1.Y {
+		p3 = p1
+		p1 = c
+	}
+	if p3.Y < p2.Y {
+		temp := p2.Y
+		p2.Y = p3.Y
+		p3.Y = temp
+	}
+	/*
 	y23 := b.Y - c.Y
 	x32 := c.X - b.X
 	y31 := c.Y - a.Y
@@ -81,13 +149,15 @@ func NewTriangle(a Point, b Point, c Point) *Triangle {
 
 	var triangle = Triangle{a, b, c, y23, x32, y31, x13, det, minD, maxD, BoundingBox{}, Color{}}
 
+	*/
+	var triangle = Triangle{p1, p2, p3, Color{}}
 
-	//var triangle = Triangle{a, b, c, BoundingBox{}, Color{}}
-
+	/*
 	triangle.Bound.Min.X = min(a.X, min(b.X, c.X))
 	triangle.Bound.Min.Y = min(a.Y, min(b.Y, c.Y))
 	triangle.Bound.Max.X = max(a.X, max(b.X, c.X))
 	triangle.Bound.Max.Y = max(a.Y, max(b.Y, c.Y))
+	*/
 
 	return &triangle
 }

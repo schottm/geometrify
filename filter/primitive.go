@@ -2,9 +2,10 @@ package filter
 
 type Primitive interface {
 
-	IsInside(x, y int) bool
+	//IsInside(x, y int) bool
 
-	Bounds() *BoundingBox
+	//Bounds() *BoundingBox
+	ForEach(do func(int, int))
 
 	GetColor() *Color
 
