@@ -143,22 +143,28 @@ func generateColor(image *Drawing, primitive Primitive) Color {
 	var red, green, blue, alpha int
 	var count int = 0
 
+	primitive.ForEach(func(x, y int) {
+		var i = image.indexOf(x, y)
+		red += int(image.data[i])
+		green += int(image.data[i + 1])
+		blue += int(image.data[i + 2])
+		alpha += int(image.data[i + 3])
+
+		count++
+	})
+
+	/*
 	for y := primitive.Bounds().Min.Y; y <= primitive.Bounds().Max.Y; y++ {
 
 		for x := primitive.Bounds().Min.X; x <= primitive.Bounds().Max.X; x++ {
 
 			if primitive.IsInside(x, y) {
 
-				var i = image.indexOf(x, y)
-				red += int(image.data[i])
-				green += int(image.data[i + 1])
-				blue += int(image.data[i + 2])
-				alpha += int(image.data[i + 3])
 
-				count++
 			}
 		}
 	}
+	*/
 
 	if count == 0 {
 
@@ -178,6 +184,16 @@ func generateImpact(source, target *Drawing, primitive Primitive) int {
 
 	//var sr, sg, sb, sa uint16
 
+	primitive.ForEach(func(x, y int) {
+		var i = source.indexOf(x, y)
+
+		impact += avgdiff(source.data[i], target.data[i], r)
+		impact += avgdiff(source.data[i + 1], target.data[i + 1], g)
+		impact += avgdiff(source.data[i + 2], target.data[i + 2], b)
+		impact += avgdiff(source.data[i + 3], target.data[i + 3], a)
+	})
+
+	/*
 	for y := primitive.Bounds().Min.Y; y <= primitive.Bounds().Max.Y; y++ {
 
 		for x := primitive.Bounds().Min.X; x <= primitive.Bounds().Max.X; x++ {
@@ -216,11 +232,11 @@ func generateImpact(source, target *Drawing, primitive Primitive) int {
 				impact -= int(diff(sg, g + shifted.data[i + 1]))
 				impact -= int(diff(sb, b + shifted.data[i + 2]))
 				impact -= int(diff(sa, a + shifted.data[i + 3]))
-				*/
+
 			}
 		}
 	}
-
+	*/
 
 	return impact
 }
@@ -232,21 +248,26 @@ func addToImage(target *Drawing, primitive Primitive) {
 	var b = primitive.GetColor().B
 	var a = primitive.GetColor().A
 
+	primitive.ForEach(func(x, y int) {
+		var i = target.indexOf(x, y)
+
+		target.data[i] = (r + target.data[i]) >> 1
+		target.data[i + 1] = (g + target.data[i + 1]) >> 1
+		target.data[i + 2] = (b + target.data[i + 2]) >> 1
+		target.data[i + 3] = (a + target.data[i + 3]) >> 1
+	})
+	/*
 	for y := primitive.Bounds().Min.Y; y <= primitive.Bounds().Max.Y; y++ {
 
 		for x := primitive.Bounds().Min.X; x <= primitive.Bounds().Max.X; x++ {
 
 			if primitive.IsInside(x, y) {
 
-				var i = target.indexOf(x, y)
 
-				target.data[i] = (r + target.data[i]) >> 1
-				target.data[i + 1] = (g + target.data[i + 1]) >> 1
-				target.data[i + 2] = (b + target.data[i + 2]) >> 1
-				target.data[i + 3] = (a + target.data[i + 3]) >> 1
 			}
 		}
 	}
+	*/
 }
 
 func avgdiff(source, target, primitive uint16) int {
