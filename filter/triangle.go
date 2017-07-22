@@ -79,9 +79,7 @@ func fillBottomFlatTriangle(p1, p2, p3 Point, do func(int, int)) {
 	curx2 := float32(p1.X)
 
 	for scanlineY := p1.Y; scanlineY <= p2.Y; scanlineY++ {
-		for i := int(curx1); i < int(curx2); i++ {
-			do(i, scanlineY)
-		}
+		drawLine(int(curx1), int(curx2), scanlineY, do)
 		curx1 += invslope1
 		curx2 += invslope2
 	}
@@ -95,11 +93,22 @@ func fillTopFlatTriangle(p1, p2, p3 Point, do func(int, int)) {
 	curx2 := float32(p3.X)
 
 	for scanlineY := p3.Y; scanlineY > p1.Y; scanlineY-- {
-		for i := int(curx1); i < int(curx2); i++ {
-			do(i, scanlineY)
-		}
+		drawLine(int(curx1), int(curx2), scanlineY, do)
 		curx1 -= invslope1
 		curx2 -= invslope2
+	}
+}
+
+func drawLine(x1, x2, y int, do func(int, int)) {
+
+	if x1 > x2 {
+		temp := x1
+		x1 = x2
+		x2 = temp
+	}
+
+	for i := x1; i <= x2; i++ {
+		do(i, y)
 	}
 }
 
@@ -134,9 +143,9 @@ func NewTriangle(a Point, b Point, c Point) *Triangle {
 		p1 = c
 	}
 	if p3.Y < p2.Y {
-		temp := p2.Y
-		p2.Y = p3.Y
-		p3.Y = temp
+		temp := p2
+		p2 = p3
+		p3 = temp
 	}
 	/*
 	y23 := b.Y - c.Y
@@ -150,7 +159,7 @@ func NewTriangle(a Point, b Point, c Point) *Triangle {
 	var triangle = Triangle{a, b, c, y23, x32, y31, x13, det, minD, maxD, BoundingBox{}, Color{}}
 
 	*/
-	var triangle = Triangle{p1, p2, p3, Color{}}
+	var triangle = Triangle{A: p1, B: p2, C: p3, Color: Color{}}
 
 	/*
 	triangle.Bound.Min.X = min(a.X, min(b.X, c.X))

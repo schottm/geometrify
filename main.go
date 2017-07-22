@@ -53,7 +53,7 @@ func main() {
 	var source = filter.DrawingFromImage(img)
 
 	var start = time.Now().UnixNano()
-	var drawing = filter.GenerateImage(source, filter.NewTriangleGenerator(1000000), *iterationsPtr, *core,  *samplesPtr)
+	var drawing = filter.GenerateImage(source, filter.NewTriangleGenerator(time.Now().UnixNano()), *iterationsPtr, *core,  *samplesPtr)
 
 	var diff = (time.Now().UnixNano() - start) / 1000000
 	var min = diff / (60 * 1000)
